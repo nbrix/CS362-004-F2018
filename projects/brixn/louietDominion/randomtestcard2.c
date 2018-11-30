@@ -1,7 +1,7 @@
 /*****************************************************************************
 Name: Nikolas Brix
 Date: 11/12/2018
-Descripton: Random test for Adventurer card.
+Descripton: Random test for Council Room card.
 *****************************************************************************/
 
 #include <stdio.h>
@@ -31,12 +31,12 @@ int Assert(bool condition, char* message)
   }
 }
 
-int testAdventurer(struct gameState *state, struct gameState *initState, int numPlayers)
+int testCouncilRoom(struct gameState *state, struct gameState *initState, int numPlayers)
 {
   int testPassed = 0;
   int placeHolder = 0;
   int *bonus = &placeHolder;
-  int cards[16] = {adventurer, gardens, embargo, village, minion, mine, cutpurse, sea_hag, tribute, smithy, copper, silver, gold, estate, duchy, province,};
+  int cards[16] = {adventurer, gardens, embargo, village, minion, mine, cutpurse, sea_hag, tribute, smithy, copper, silver, gold, estate, duchy, province};
 
   // random variables
   int player = rand() % numPlayers;	// player to test
@@ -64,54 +64,48 @@ int testAdventurer(struct gameState *state, struct gameState *initState, int num
   	}
   }
 
-  // count number of treasures
-  int numTreasuresInHand = 0;
+  // count number of Council Rooms in hand
+  int handpos = 0;
+  int numCouncilRoomInHand = 0;
   for (i = 0; i < handcount; i++) {
-  	if (state->hand[player][i] == copper || state->hand[player][i] == silver || state->hand[player][i] == gold) {
-  		numTreasuresInHand++;
+  	if (state->hand[player][i] == council_room) {
+  		numCouncilRoomInHand++;
+      handpos = i;
   	}
   }
 
-  // count number of treasures in deck
-  int numTreasuresInDeck = 0;
-  for (i = 0; i < deckcount; i++) {
-  	if (state->deck[player][i] == copper || state->deck[player][i] == silver || state->deck[player][i] == gold) {
-  		numTreasuresInDeck++;
-  	}
+  // if there are no council rooms in hand, put one in the first position
+  if (numCouncilRoomInHand == 0) {
+    state->hand[player][0] = council_room;
+    numCouncilRoomInHand = 1;
   }
 
-  int numAdventureInHand = 0;
-  for (i = 0; i < handcount; i++) {
-  	if (state->hand[player][i] == adventurer) {
-  		numAdventureInHand++;
-  	}
+  // get initial hand counts of all players
+  int initHandCount[4];
+  for (i = 0; i < numPlayers; i++) {
+    initHandCount[i] = state->handCount[i];
   }
 
-  cardEffect(adventurer, placeHolder, placeHolder, placeHolder, state, placeHolder, bonus);
+  cardEffect(council_room, placeHolder, placeHolder, placeHolder, state, handpos, bonus);
   
-  int currentHandCount = state->handCount[player];
-
-  // count number of treasures in hand
-  int numTreasures = 0;
-  for (i = 0; i < currentHandCount; i++) {
-    int card = state->hand[player][i];
-    if (card == copper || card == silver || card == gold) {
-      numTreasures++;
-    }
+  // get current hand count of all players
+  int currentHandCount[4];
+  for (i = 0; i < numPlayers; i++) {
+    currentHandCount[i] = state->handCount[i];
   }
 
-  // test if no treasures are found - should be impossible scenario in a real game
-  if (numTreasuresInDeck == 0)
-  	testPassed += Assert((numTreasuresInHand) == numTreasures, "No treasure was found");
+  // test if hand increases by three
+  testPassed += Assert((currentHandCount[player] - 3) == initHandCount[player], "Draw four cards");
 
-  // test if only 1 treasure is found
-  if (numTreasuresInDeck == 1)
-  	testPassed += Assert((numTreasuresInHand + 1) == numTreasures, "One treasure is found");
+  // test if other players hands only increase by one
+  for (i = 0; i < numPlayers; i++) {
+    if (i != player)
+      testPassed += Assert((currentHandCount[i] - 1) == initHandCount[i], "Draw one card");
+  }
 
-  // test if 2 treasures are in the deck
-  if (numTreasuresInDeck >= 2)
-  	testPassed += Assert((numTreasuresInHand + 2) == numTreasures, "Two treasures are found");
-
+  // test state increases buy by one
+  testPassed += Assert((initState->numBuys + 1) == state->numBuys, "Buy increases by one");
+  
   // test supply piles stay the same
   bool isSameCount = true;
   for (i = 0; i <= treasure_map; i++) {
@@ -121,14 +115,14 @@ int testAdventurer(struct gameState *state, struct gameState *initState, int num
   }
   testPassed += Assert(isSameCount, "Supply piles stay the same");
 
-  // test Adventurer card is discarded
-  int finalAdventureCount = 0;
+  // test coucil room card is discarded
+  int finalCouncilRoomCount = 0;
   for (i = 0; i < state->handCount[player]; i++) {
-    if (state->hand[player][i] == adventurer) {
-      finalAdventureCount++;
+    if (state->hand[player][i] == council_room) {
+      finalCouncilRoomCount++;
     }
   }
-  testPassed += Assert(finalAdventureCount == (numAdventureInHand - 1), "Card is discarded");
+  testPassed += Assert(finalCouncilRoomCount == (numCouncilRoomInHand - 1), "Card is discarded");
   
   return testPassed;
 }
@@ -147,14 +141,14 @@ int main()
   	int numPlayers = rand() % playerRange + MIN_PLAYERS;
   	initializeGame(numPlayers, k, rand() % 1000, &G);
   	memcpy(&initialG, &G, sizeof(struct gameState));
-  	int testResults = testAdventurer(&G, &initialG, numPlayers);
+  	int testResults = testCouncilRoom(&G, &initialG, numPlayers);
 
-	if (testResults > 0) {
-	  numTestsFailed++;
-	}
-	else {
-	  numTestsPassed++;
-	}
+  	if (testResults > 0) {
+  	  numTestsFailed++;
+  	}
+  	else {
+  	  numTestsPassed++;
+  	}
   }
     
   printf("NUMBER OF TESTS PASSED: %d\n", numTestsPassed);
